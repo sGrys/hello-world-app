@@ -1,86 +1,134 @@
-import React, { useEffect, useState } from "react";
-import ForgeReconciler, { Text, Strong, DynamicTable, Stack, Inline, Box, Badge, Icon } from "@forge/react";
-import { invoke } from "@forge/bridge";
+import React, { useEffect, useState } from 'react';
+import ForgeReconciler, { Text, Strong, DynamicTable, Stack, Inline, Box, Icon, Spinner, Lozenge, xcss } from '@forge/react';
+import { invoke } from '@forge/bridge';
 
 const App = () => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    invoke("getNotes", {}).then((data) => {
+    invoke('getNotes', {}).then((data) => {
+      console.log('Fetched data:', data);
       setData(Array.isArray(data) ? data : []);
     }).catch(error => {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching data:', error);
     });
   }, []);
 
   const head = {
     cells: [
-      { key: "module", content: "Module", isSortable: true, width: 20 },
-      { key: "type", content: "Type", isSortable: false, width: 10 },
-      { key: "description", content: "Description", isSortable: false }
+      { key: 'type', content: '', isSortable: false, width: 10 },
+      { key: 'description', content: '', isSortable: false, width: 90 }
     ]
   };
 
-  const getIconOrBadge = (type) => {
-    if (type.toLowerCase() === "feature") {           return <Icon glyph="suitcase" label="Feature" />;}
-    else if (type.toLowerCase() === "bug") {          return <Icon glyph="warning" label="Bug" />;}
-    else if (type.toLowerCase() === "task") {         return <Icon glyph="task" label="Task" />;}
-    else if (type.toLowerCase() === "enhancement") {  return <Icon glyph="add" label="Enhancement" />;}
-    else {return null;}
+  const getIcon = (type) => {
+    if (type.toLowerCase() === "feature") {
+      return <Icon size="medium" glyph="suitcase" label="Feature" />;
+    } else if (type.toLowerCase() === "bug") {
+      return <Icon size="medium" glyph="warning" label="Bug" />;
+    } else if (type.toLowerCase() === "task") {
+      return <Icon size="medium" glyph="task" label="Task" />;
+    } else if (type.toLowerCase() === "enhancement") {
+      return <Icon size="medium" glyph="add" label="Enhancement" />;
+    } else {
+      return null;
+    }
   };
 
-  const rows = data ? data.flatMap(item => 
-    (item.items || []).sort((a, b) => a.module.localeCompare(b.module)).map((moduleItem, index) => ({
-      key: `${item.versionNumber}-${moduleItem.module}-${index}`,
-      cells: [
-        {
-          key: "module", 
-          content: (
-            <Stack alignBlock="start">
-              <Box padding="space.200">
-                <Text>{moduleItem.module}</Text>
-              </Box>
-            </Stack>
-          )
-        },
-        {
-          key: "type",
-          content: (
-              <Box padding="space.200">
-                {getIconOrBadge(moduleItem.type)}
-              </Box>
-          )
-        },
-        {
-          key: "description",
-          content: (
-            <Stack space="space.100">
-              <Strong>{moduleItem.title}</Strong>
-              <Text>{moduleItem.description}</Text>
-            </Stack>
-          )
-        }
-      ]
-    }))
-  ) : [];
+  const groupByModule = (items) => {
+    if (!items) return [];
 
-  const highlightedRows = rows.map((_, index) => index).filter(index => index % 2 === 0);
+    const grouped = items.reduce((acc, item) => {
+      if (!acc[item.module]) {
+        acc[item.module] = [];
+      }
+      acc[item.module].push(item);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped).map(([module, moduleItems]) => ({
+      module,
+      items: moduleItems,
+    }));
+  };
+
+  const releaseBoxStyle = xcss({
+    borderColor: 'color.border.accent.gray',
+    borderWidth: 'border.width',
+    borderStyle: 'solid',
+    borderRadius: 'border.radius',
+    backgroundColor: 'color.background.input.hovered'
+  });
+
+  const moduleBoxStyle = xcss({
+    borderColor: 'color.border.accent.gray',
+    borderWidth: 'border.width',
+    borderStyle: 'solid',
+    borderRadius: 'border.radius', 
+    marginBottom: 'space.200',
+    backgroundColor: 'color.background.input.pressed'
+  });
+
+  const moduleBoxCol1Style = xcss({
+    width: '200px',
+    marginRight: 'space.100'
+  });
+
+  const moduleBoxCol2Style = xcss({
+    width: '795px',
+    borderLeftColor: 'color.border.accent.gray',
+    borderLeftWidth: 'border.width',
+    borderLeftStyle: 'solid'
+  });
 
   return (
-    <Stack space="large">
+    <Stack space="space.250" grow="fill">
       {data ? data.map(item => (
-        <Box key={item.versionNumber} padding="space.200">
+        <Box key={item.versionNumber} padding="space.100" xcss={releaseBoxStyle}>
           <Strong>{`${item.name}`}</Strong>
           <Text>{`Release date: ${item.releaseDate}`}</Text>
-          <DynamicTable
-            head={head}
-            rows={rows.filter(row => row.key.startsWith(`${item.versionNumber}-`))}
-            highlightedRowIndex={highlightedRows}
-            emptyView="No data to display"
-          />
+          {groupByModule(item.items).map((group, index) => (
+            <Box xcss={moduleBoxStyle}> 
+              <Inline key={`${item.versionNumber}-${group.module}-${index}`} alignBlock="start" alignInline="stretch">
+                <Box padding="space.200" xcss={moduleBoxCol1Style}>
+                  <Lozenge appearance="inprogress" isBold>{group.module}</Lozenge>
+                </Box>
+                <Box xcss={moduleBoxCol2Style}>
+                  <DynamicTable
+                    rows={group.items.map((moduleItem, moduleIndex) => ({
+                      key: `${item.versionNumber}-${moduleItem.module}-${moduleIndex}`,
+                      cells: [
+                        {
+                          key: 'type',
+                          width: 5,
+                          content: (
+                            <Box padding="space.200">{getIcon(moduleItem.type)}</Box>
+                          )
+                        },
+                        {
+                          key: 'description',
+                          width: 95,
+                          content: (
+                            <Stack space="space.100">
+                              <Strong>{moduleItem.title}</Strong>
+                              <Text>{moduleItem.description}</Text>
+                            </Stack>
+                          )
+                        }
+                      ]
+                    }))}
+                    highlightedRowIndex={group.items.map((_, index) => index).filter(index => index % 2 === 0)}
+                    emptyView="No data to display"
+                  />
+                </Box>
+              </Inline>
+            </Box>
+          ))}
         </Box>
       )) : (
-        <Text>Loading data...</Text>
+        <Inline space="space.100" alignBlock="center" alignInline="center">
+          <Spinner size="large" />
+        </Inline>  
       )}
     </Stack>
   );
