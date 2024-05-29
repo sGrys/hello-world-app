@@ -1,0 +1,27 @@
+modules:
+  macro:
+    - key: hello-world-app-hello-world
+      resource: main
+      render: native
+      resolver:
+        function: resolver
+      title: hello-world-app-hello-world
+      description: Inserts hello world!
+  function:
+    - key: resolver
+      handler: index.handler
+resources:
+  - key: main
+    path: src/frontend/index.jsx
+app:
+  id: ari:cloud:ecosystem::app/72dfb89a-ac58-488c-abb9-a0bb63bd9a22
+  licensing:
+    enabled: true
+  runtime:
+    name: nodejs18.x
+permissions:
+  external:
+    fetch:
+      backend:
+        - tspc--uat.sandbox.my.salesforce-sites.com
+        - tspc.sandbox.my.salesforce-sites.com
